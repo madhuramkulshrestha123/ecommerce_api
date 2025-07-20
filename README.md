@@ -1,4 +1,7 @@
-# E-Commerce API
+![Uploading image.png…]()
+
+
+## E-Commerce API
 
 <div align="center">
   <img width="800" alt="E-Commerce API Architecture" src="https://github.com/user-attachments/assets/65d8e44d-90bc-4ab4-a297-a425e6ecb06a" />
