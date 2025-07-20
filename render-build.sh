@@ -4,6 +4,13 @@
 # Exit on error
 set -e
 
+# Install dependencies with binary wheels
+echo "Installing packages with binary wheels..."
+pip install --upgrade pip setuptools wheel
+
+# Install cryptography and bcrypt separately with binary wheels
+pip install --only-binary :all: cryptography bcrypt python-jose
+
 # Install production dependencies
 echo "Installing production dependencies..."
 pip install -r requirements-prod.txt

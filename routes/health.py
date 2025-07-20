@@ -1,10 +1,4 @@
-from fastapi import APIRouter, Depends, status
-from pydantic import BaseModel
-from typing import Dict, Any
-import time
-
-from core.database import get_database
-
+from fastapi import APIRouter, status
 
 router = APIRouter(
     prefix="/health",
@@ -12,48 +6,10 @@ router = APIRouter(
 )
 
 
-class HealthResponse(BaseModel):
-    """Health check response schema."""
-    
-    status: str
-    version: str
-    timestamp: float
-    database: Dict[str, Any]
-
-
-@router.get(
-    "/",
-    response_model=HealthResponse,
-    summary="Health check",
-    description="Check the health of the API and its dependencies."
-)
-async def health_check(db = Depends(get_database)):
+@router.get("/", status_code=status.HTTP_200_OK)
+async def health_check():
     """
-    Perform a health check of the API and its dependencies.
-    
-    Checks:
-    - API availability
-    - Database connection
-    
-    Returns a status report with timestamp and version information.
+    Health check endpoint for the API.
+    Returns 200 OK if the API is running.
     """
-    # Check database connection
-    db_status = {"status": "healthy"}
-    try:
-        # Simple ping to check database connection
-        await db.command("ping")
-    except Exception as e:
-        db_status = {
-            "status": "unhealthy",
-            "error": str(e)
-        }
-    
-    # Get API version from settings
-    from core.config import settings
-    
-    return HealthResponse(
-        status="healthy" if db_status["status"] == "healthy" else "degraded",
-        version=settings.PROJECT_VERSION,
-        timestamp=time.time(),
-        database=db_status
-    ) 
+    return {"status": "ok", "message": "API is running"} 
