@@ -4,15 +4,21 @@
 # Exit on error
 set -e
 
-# Set temporary writable paths to avoid "read-only file system" errors with Rust crates
-export CARGO_HOME=$(mktemp -d)
-export RUSTUP_HOME=$(mktemp -d)
+# Print Python and pip versions
+echo "🐍 Python version:"
+python --version
+echo "📦 Pip version:"
+pip --version
 
-echo "🔧 Installing pip and build tools..."
-pip install --upgrade pip setuptools wheel
-
-echo "📦 Installing production dependencies from requirements-prod.txt..."
-pip install --no-cache-dir --no-binary :all: -r requirements-prod.txt || pip install --no-cache-dir -r requirements-prod.txt
+# Install dependencies directly with pre-built wheels
+echo "📦 Installing dependencies directly (skipping requirements.txt)..."
+pip install --no-cache-dir --only-binary :all: \
+  fastapi==0.103.1 \
+  uvicorn==0.22.0 \
+  motor==3.1.2 \
+  pymongo==4.3.3 \
+  pydantic==2.4.2 \
+  python-dotenv==1.0.0
 
 echo "🔁 Replacing v1 files with Pydantic v2 compatible versions if they exist..."
 
@@ -34,10 +40,43 @@ if [ -f schemas/order_v2.py ]; then
     echo "✅ Replaced schemas/order.py with v2 version"
 fi
 
-# Use simplified main file for production
-if [ -f main_prod.py ]; then
-    cp main_prod.py main_deploy.py
-    echo "✅ Using simplified main file for deployment"
-fi
+# Create a minimal deployment app
+echo "📝 Creating minimal deployment app..."
+cat > main_deploy.py << 'EOF'
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+# Create FastAPI app
+app = FastAPI(
+    title="E-Commerce API",
+    description="E-Commerce API with FastAPI and MongoDB",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
+)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Root endpoint
+@app.get("/", include_in_schema=False)
+async def root():
+    return {
+        "message": "Welcome to E-Commerce API!",
+        "docs_url": "/api/docs",
+        "health_endpoint": "/health"
+    }
+
+# Health check
+@app.get("/health", include_in_schema=False)
+async def health():
+    return {"status": "healthy"}
+EOF
 
 echo "🚀 Deployment preparation complete!"
