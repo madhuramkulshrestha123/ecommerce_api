@@ -1,5 +1,7 @@
 # E-Commerce API
 
+<img width="2400" height="1600" alt="architecture_diagram" src="https://github.com/user-attachments/assets/65d8e44d-90bc-4ab4-a297-a425e6ecb06a" />
+
 A modern e-commerce API built with FastAPI and MongoDB.
 
 ## Project Structure
@@ -35,6 +37,7 @@ A modern e-commerce API built with FastAPI and MongoDB.
 ├── requirements.txt       # Project dependencies
 └── .env.example           # Environment variables example
 ```
+<img width="1366" height="768" alt="image" src="https://github.com/user-attachments/assets/7522e5ae-5f44-4d31-b5ee-679c353a45d1" />
 
 ## Features
 
