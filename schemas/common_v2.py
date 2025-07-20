@@ -1,5 +1,5 @@
-from typing import Generic, TypeVar, List, Optional, Dict, Any
-from pydantic import BaseModel, Field
+from typing import Generic, TypeVar, List, Optional, Dict, Any, Annotated
+from pydantic import BaseModel, Field, BeforeValidator
 from pydantic.generics import GenericModel
 
 
@@ -77,19 +77,14 @@ class ErrorResponse(BaseModel):
     details: Optional[Dict[str, Any]] = Field(None, description="Error details")
 
 
-class ObjectIdStr(str):
-    """String type that validates as MongoDB ObjectId."""
+def validate_object_id(v: Any) -> str:
+    """Validate that a string is a valid MongoDB ObjectId."""
+    from bson import ObjectId
     
-    @classmethod
-    def __get_validators__(cls):
-        from bson import ObjectId
-        
-        yield cls.validate
-        
-    @classmethod
-    def validate(cls, v):
-        from bson import ObjectId
-        
-        if not ObjectId.is_valid(v):
-            raise ValueError("Invalid ObjectId")
-        return str(v) 
+    if not ObjectId.is_valid(v):
+        raise ValueError("Invalid ObjectId")
+    return str(v)
+
+
+# Define ObjectIdStr as an Annotated type
+ObjectIdStr = Annotated[str, BeforeValidator(validate_object_id)] 
