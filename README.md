@@ -1,5 +1,4 @@
-![Uploading image.png…]()
-
+<img width="818" height="248" alt="image" src="https://github.com/user-attachments/assets/f03b2b08-ab10-4251-bd80-a6319f344677" />
 
 ## E-Commerce API
 
