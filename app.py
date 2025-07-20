@@ -1,4 +1,5 @@
 import logging
+from typing import Dict, Any, List
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -26,7 +27,7 @@ app.add_middleware(
 
 # Root endpoint
 @app.get("/", include_in_schema=False)
-async def root():
+async def root() -> Dict[str, str]:
     return {
         "message": "Welcome to E-Commerce API!",
         "docs_url": "/api/docs",
@@ -35,5 +36,5 @@ async def root():
 
 # Health check
 @app.get("/health", include_in_schema=False)
-async def health():
+async def health() -> Dict[str, str]:
     return {"status": "healthy"} 
