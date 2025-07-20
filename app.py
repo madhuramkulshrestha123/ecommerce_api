@@ -60,6 +60,9 @@ PRODUCTS = [
     }
 ]
 
+# Mock orders data
+ORDERS = []
+
 # Product endpoints
 @app.post("/api/v1/products", status_code=201)
 async def create_product(product: Dict[str, Any]) -> Dict[str, Any]:
@@ -131,4 +134,91 @@ async def get_product(product_id: str) -> Dict[str, Any]:
             return product
     
     # Return 404 if not found
-    raise HTTPException(status_code=404, detail="Product not found") 
+    raise HTTPException(status_code=404, detail="Product not found")
+
+# Order endpoints
+@app.post("/api/v1/orders", status_code=201)
+async def create_order(order: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a new order."""
+    # Add timestamp
+    from datetime import datetime
+    order["created_at"] = datetime.utcnow().isoformat()
+    order["updated_at"] = datetime.utcnow().isoformat()
+    
+    # Add ID
+    import uuid
+    order["id"] = str(uuid.uuid4())
+    
+    # Calculate subtotal, tax, and total
+    subtotal = 0
+    for item in order.get("items", []):
+        product_id = item.get("product_id")
+        quantity = item.get("quantity", 1)
+        
+        # Find product
+        product = None
+        for p in PRODUCTS:
+            if p.get("id") == product_id:
+                product = p
+                break
+        
+        if not product:
+            raise HTTPException(status_code=404, detail=f"Product not found: {product_id}")
+        
+        # Add product details to item
+        item["product_name"] = product.get("name", "Unknown Product")
+        item["price"] = product.get("price", 0)
+        item["subtotal"] = item["price"] * quantity
+        
+        # Add to subtotal
+        subtotal += item["subtotal"]
+    
+    # Set order totals
+    order["subtotal"] = subtotal
+    order["shipping_cost"] = order.get("shipping_cost", 0)
+    order["tax"] = order.get("tax", 0)
+    order["total"] = subtotal + order["shipping_cost"] + order["tax"]
+    
+    # Set status
+    order["order_status"] = "pending"
+    order["payment_status"] = "pending"
+    
+    # Add to mock database
+    ORDERS.append(order)
+    
+    return order
+
+@app.get("/api/v1/orders")
+async def list_orders(
+    user_id: Optional[str] = None,
+    limit: int = 10,
+    skip: int = 0
+) -> Dict[str, Any]:
+    """Get a list of orders with optional filtering."""
+    # Filter orders
+    filtered_orders = ORDERS
+    
+    if user_id:
+        filtered_orders = [o for o in filtered_orders if o.get("user_id") == user_id]
+    
+    # Apply pagination
+    paginated_orders = filtered_orders[skip:skip + limit]
+    
+    # Return paginated response
+    return {
+        "items": paginated_orders,
+        "total": len(filtered_orders),
+        "limit": limit,
+        "skip": skip
+    }
+
+@app.get("/api/v1/orders/{order_id}")
+async def get_order(order_id: str) -> Dict[str, Any]:
+    """Get an order by ID."""
+    # Find order by ID
+    for order in ORDERS:
+        if order.get("id") == order_id:
+            return order
+    
+    # Return 404 if not found
+    raise HTTPException(status_code=404, detail="Order not found") 
