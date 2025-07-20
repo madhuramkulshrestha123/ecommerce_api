@@ -4,16 +4,17 @@
 # Exit on error
 set -e
 
-# Install dependencies with binary wheels
-echo "Installing base packages..."
+# Set temporary writable paths to avoid "read-only file system" errors with Rust crates
+export CARGO_HOME=$(mktemp -d)
+export RUSTUP_HOME=$(mktemp -d)
+
+echo "🔧 Installing pip and build tools..."
 pip install --upgrade pip setuptools wheel
 
-# Install minimal dependencies without any Rust components
-echo "Installing minimal dependencies..."
-pip install fastapi==0.103.1 uvicorn==0.22.0 motor==3.1.2 pymongo==4.3.3 pydantic==2.4.2 python-dotenv==1.0.0
+echo "📦 Installing production dependencies from requirements-prod.txt..."
+pip install --no-cache-dir --no-binary :all: -r requirements-prod.txt || pip install --no-cache-dir -r requirements-prod.txt
 
-# Replace Pydantic v1 files with v2 compatible versions
-echo "Replacing Pydantic v1 files with v2 compatible versions..."
+echo "🔁 Replacing v1 files with Pydantic v2 compatible versions if they exist..."
 
 # Replace models/order.py with models/order_v2.py
 if [ -f models/order_v2.py ]; then
@@ -39,4 +40,4 @@ if [ -f main_prod.py ]; then
     echo "✅ Using simplified main file for deployment"
 fi
 
-echo "Deployment preparation complete!" 
+echo "🚀 Deployment preparation complete!"
