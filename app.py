@@ -1,18 +1,11 @@
 import logging
-import os
 from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# MongoDB connection
-MONGODB_URL = os.environ.get("MONGODB_URL", "mongodb://localhost:27017")
-client = AsyncIOMotorClient(MONGODB_URL)
-db = client.ecommerce
 
 # Create FastAPI app
 app = FastAPI(
@@ -46,25 +39,44 @@ async def root() -> Dict[str, str]:
 async def health() -> Dict[str, str]:
     return {"status": "healthy"}
 
+# Mock product data
+PRODUCTS = [
+    {
+        "id": "1",
+        "name": "Sample T-Shirt",
+        "description": "A test product.",
+        "price": 499.99,
+        "category": "apparel",
+        "brand": "TestBrand",
+        "tags": ["tshirt", "sample"],
+        "is_active": True,
+        "image_urls": [],
+        "sizes": [
+            {"size": "M", "stock": 50},
+            {"size": "L", "stock": 35}
+        ],
+        "created_at": "2025-07-20T05:42:00.057000",
+        "updated_at": "2025-07-20T05:42:00.057000"
+    }
+]
+
 # Product endpoints
 @app.post("/api/v1/products", status_code=201)
 async def create_product(product: Dict[str, Any]) -> Dict[str, Any]:
     """Create a new product."""
     # Add timestamp
     from datetime import datetime
-    product["created_at"] = datetime.utcnow()
-    product["updated_at"] = datetime.utcnow()
+    product["created_at"] = datetime.utcnow().isoformat()
+    product["updated_at"] = datetime.utcnow().isoformat()
     
-    # Insert into database
-    result = await db.products.insert_one(product)
+    # Add ID
+    import uuid
+    product["id"] = str(uuid.uuid4())
     
-    # Return created product
-    created_product = await db.products.find_one({"_id": result.inserted_id})
-    if created_product:
-        created_product["id"] = str(created_product.pop("_id"))
-        return created_product
+    # Add to mock database
+    PRODUCTS.append(product)
     
-    raise HTTPException(status_code=500, detail="Failed to create product")
+    return product
 
 @app.get("/api/v1/products")
 async def list_products(
@@ -78,39 +90,34 @@ async def list_products(
     skip: int = 0
 ) -> Dict[str, Any]:
     """Get a list of products with optional filtering."""
-    # Build query
-    query = {}
+    # Filter products
+    filtered_products = PRODUCTS
     
     if category:
-        query["category"] = category
+        filtered_products = [p for p in filtered_products if p.get("category") == category]
     if brand:
-        query["brand"] = brand
+        filtered_products = [p for p in filtered_products if p.get("brand") == brand]
     if min_price is not None:
-        query.setdefault("price", {})["$gte"] = min_price
+        filtered_products = [p for p in filtered_products if p.get("price", 0) >= min_price]
     if max_price is not None:
-        query.setdefault("price", {})["$lte"] = max_price
+        filtered_products = [p for p in filtered_products if p.get("price", 0) <= max_price]
     if size:
-        query["sizes.size"] = size
+        filtered_products = [p for p in filtered_products if any(s.get("size") == size for s in p.get("sizes", []))]
     if search:
-        query["$or"] = [
-            {"name": {"$regex": search, "$options": "i"}},
-            {"description": {"$regex": search, "$options": "i"}},
+        import re
+        pattern = re.compile(search, re.IGNORECASE)
+        filtered_products = [
+            p for p in filtered_products 
+            if pattern.search(p.get("name", "")) or pattern.search(p.get("description", ""))
         ]
     
-    # Get total count
-    total_count = await db.products.count_documents(query)
-    
-    # Get products
-    cursor = db.products.find(query).skip(skip).limit(limit)
-    products = []
-    async for product in cursor:
-        product["id"] = str(product.pop("_id"))
-        products.append(product)
+    # Apply pagination
+    paginated_products = filtered_products[skip:skip + limit]
     
     # Return paginated response
     return {
-        "items": products,
-        "total": total_count,
+        "items": paginated_products,
+        "total": len(filtered_products),
         "limit": limit,
         "skip": skip
     }
@@ -118,18 +125,10 @@ async def list_products(
 @app.get("/api/v1/products/{product_id}")
 async def get_product(product_id: str) -> Dict[str, Any]:
     """Get a product by ID."""
-    from bson import ObjectId
+    # Find product by ID
+    for product in PRODUCTS:
+        if product.get("id") == product_id:
+            return product
     
-    # Validate ObjectId
-    if not ObjectId.is_valid(product_id):
-        raise HTTPException(status_code=400, detail="Invalid product ID")
-    
-    # Get product
-    product = await db.products.find_one({"_id": ObjectId(product_id)})
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    
-    # Convert _id to string
-    product["id"] = str(product.pop("_id"))
-    
-    return product 
+    # Return 404 if not found
+    raise HTTPException(status_code=404, detail="Product not found") 
